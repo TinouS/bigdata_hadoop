@@ -28,6 +28,10 @@ public class VilleWritable implements Writable{
         info = i;
     }
     
+    public VilleWritable clone(){
+        return new VilleWritable(population, info);
+    }
+    
     public float getPopulation(){
         return population;
     }

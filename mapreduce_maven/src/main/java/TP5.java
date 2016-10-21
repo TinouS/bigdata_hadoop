@@ -56,7 +56,7 @@ public class TP5 {
                 Context context
         ) throws IOException, InterruptedException {
             for (VilleWritable value : values) {
-                topKVilles.put(value.getPopulation(), value);
+                topKVilles.put(value.getPopulation(), value.clone());
                 if (topKVilles.size() > k) {
                     topKVilles.remove(topKVilles.firstKey());
                 }
@@ -100,7 +100,7 @@ public class TP5 {
         job.setMapperClass(MonProgMapper.class);
         job.setMapOutputKeyClass(NullWritable.class);
         job.setMapOutputValueClass(VilleWritable.class);
-        //job.setCombinerClass(MonProgCombiner.class);
+        job.setCombinerClass(MonProgCombiner.class);
         job.setReducerClass(MonProgReducer.class);
         job.setOutputKeyClass(NullWritable.class);
         job.setOutputValueClass(Text.class);
