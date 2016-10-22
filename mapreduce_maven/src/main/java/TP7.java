@@ -74,11 +74,10 @@ public class TP7 {
   
   public static class MonProgReducer
        extends Reducer<TaggedKey,TaggedValue,NullWritable,Text> {
-      String region = null;
     public void reduce(TaggedKey key, Iterable<TaggedValue> values,
                        Context context
                        ) throws IOException, InterruptedException {
-        
+        String region = null;
         for(TaggedValue value : values){
             if (value.getType() == 1)
                 region = value.getValue();
