@@ -48,4 +48,8 @@ public class TaggedKey implements WritableComparable<TaggedKey>{
         return (type < o.getType()? -1 : (type == o.getType()? 0 : 1));
     }
     
+    public String toString(){
+        return value;
+    }
+    
 }

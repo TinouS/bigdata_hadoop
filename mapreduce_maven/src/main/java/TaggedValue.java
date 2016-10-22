@@ -50,4 +50,7 @@ public class TaggedValue implements Writable{
         value = di.readLine();
     }
     
+    public String toString(){
+        return value;
+    }
 }

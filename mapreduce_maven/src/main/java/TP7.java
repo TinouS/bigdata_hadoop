@@ -41,7 +41,7 @@ public class TP7 {
   } 
    
   public static class MonProgPartitioner extends Partitioner<TaggedKey, TaggedValue>{
-
+      
         @Override
         public int getPartition(TaggedKey key, TaggedValue value, int i) {
             String naturalKey = key.getNaturalKey();
@@ -51,23 +51,41 @@ public class TP7 {
   }
   
   public static class MonProgGrouper extends WritableComparator{
+      
+      public MonProgGrouper (){
+          super(TaggedKey.class, true);
+      }
+      
       public int compare(TaggedKey a, TaggedKey b){
-          return 0;//TODO: a compléter
+          return a.getNaturalKey().compareTo(b.getNaturalKey());
       }
   }
   
   public static class MonProgSorter extends WritableComparator{
+      
+      public MonProgSorter(){
+          super(TaggedKey.class, true);
+      }
+      
       public int compare(TaggedKey a, TaggedKey b){
-          return 0;//TODO: à compléter
+          return (a.getType() < b.getType()) ? 1 : -1;
       }
   }
   
   public static class MonProgReducer
        extends Reducer<TaggedKey,TaggedValue,NullWritable,Text> {
-    public void reduce(Text key, Iterable<TaggedValue> values,
+      String region = null;
+    public void reduce(TaggedKey key, Iterable<TaggedValue> values,
                        Context context
                        ) throws IOException, InterruptedException {
-        ArrayList<String> tmpTown = new ArrayList<String>();
+        
+        for(TaggedValue value : values){
+            if (value.getType() == 1)
+                region = value.getValue();
+            else
+                context.write(NullWritable.get(), new Text(value.getValue()+ "," + region));
+        }
+        /*ArrayList<String> tmpTown = new ArrayList<String>();
         String region = null;
         for(TaggedValue value : values){
             if (region == null && value.getType() == 0){
@@ -86,10 +104,9 @@ public class TP7 {
                 tmpTown.clear();
                 continue;
             }
-            context.write(NullWritable.get(), new Text(value.getValue() + "," + region));
+            context.write(NullWritable.get(), new Text(value.getValue() + "," + region));*/
         }
     }
-  }
   public static void main(String[] args) throws Exception {
     Configuration conf = new Configuration();
     Job job = Job.getInstance(conf, "MonProg");
@@ -102,6 +119,9 @@ public class TP7 {
     job.setOutputKeyClass(NullWritable.class);
     job.setOutputValueClass(Text.class);
     job.setOutputFormatClass(TextOutputFormat.class);
+    job.setPartitionerClass(MonProgPartitioner.class);
+    job.setGroupingComparatorClass(MonProgGrouper.class);
+    job.setSortComparatorClass(MonProgSorter.class);
     //job.setInputFormatClass(TextInputFormat.class);
     MultipleInputs.addInputPath(job, new Path(args[0]), TextInputFormat.class, MapperTown.class);
     MultipleInputs.addInputPath(job, new Path(args[1]), TextInputFormat.class, MapperRegion.class);
