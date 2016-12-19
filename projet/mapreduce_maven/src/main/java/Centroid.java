@@ -21,6 +21,11 @@ public class Centroid {
         line = value;
     }
     
+    public Centroid(int value){
+        values.add(value);
+        line = null;
+    }
+    
     String getLine (){
         return line;
     }

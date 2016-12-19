@@ -2,8 +2,12 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URI;
 import java.util.ArrayList;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.NullWritable;
@@ -28,6 +32,7 @@ public class KMeans {
 			  ) throws IOException, InterruptedException {
               String tokens[] = value.toString().split(",");
               int col = Integer.parseInt(context.getConfiguration().get("col"));
+              try{
               int var = Integer.parseInt(tokens[col]);
               int closest = 0;
               for (int i = 0; i<centroidList.size();i++){
@@ -35,6 +40,9 @@ public class KMeans {
                       closest = i;
               }
               context.write(new IntWritable(closest), value);
+              }catch(Exception e){
+                  
+              }
 		  //context.write(word, one);
 	  }
   }
@@ -62,12 +70,12 @@ public class KMeans {
             context.write(NullWritable.get(), new Text(value.toString()+","+key.get()));
         }
         mean = sum/count;
-        newCentroidList.add(key.get(), new Centroid(null, mean));
+        newCentroidList.add(new Centroid(mean));
     }
   }
   public static void main(String[] args) throws Exception {
     Configuration conf = new Configuration();
-    conf.set("col", args[2]);
+    conf.set("col", args[3]);
     Job job = Job.getInstance(conf, "KMeans");
     job.setNumReduceTasks(1);
     job.setJarByClass(KMeans.class);
@@ -81,20 +89,23 @@ public class KMeans {
     job.setOutputFormatClass(TextOutputFormat.class);
     job.setInputFormatClass(TextInputFormat.class);
     FileInputFormat.addInputPath(job, new Path(args[0]));
-    FileOutputFormat.setOutputPath(job, new Path(getOutputPath(args[0])));
+    FileOutputFormat.setOutputPath(job, new Path(args[1]));
     //generer une liste de centres en piochant dans le fichier d'input
-    FileReader reader = new FileReader(new File(args[0]));
-    BufferedReader bt = new BufferedReader(reader);
+    FileSystem fs = FileSystem.get(conf);
+    BufferedReader bt = new BufferedReader(new InputStreamReader(fs.open(new Path(args[0]))));
     String chaine;
-    for (int i=0; i< Integer.parseInt(args[1]) && ((chaine=bt.readLine())!=null);i++){
-        centroidList.add(new Centroid(chaine, Integer.parseInt(args[2])));
+    for (int i=0; i< Integer.parseInt(args[2]) && ((chaine=bt.readLine())!=null);i++){
+        centroidList.add(new Centroid(chaine, Integer.parseInt(args[3])));
     }
     job.waitForCompletion(true);
     while(!centroidList.equals(newCentroidList)){
         centroidList = newCentroidList;
-        File outputFile = new File(getOutputPath(args[0]));
-        outputFile.delete();
+        fs.delete(new Path(args[1]), true);
+        //File outputFile = new File(args[1]);
+        //outputFile.delete();
         job.waitForCompletion(true);
+        System.out.println("another job done!!!!!!");
+        System.out.println(centroidList.size());
     }
     //System.exit(job.waitForCompletion(true) ? 0 : 1);
   }
