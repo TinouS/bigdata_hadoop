@@ -17,7 +17,7 @@ public class Centroid {
     
     public Centroid(String value, int col){
         String[] tokens = value.split(",");
-        values.add(col);
+        values.add(Integer.parseInt(tokens[col]));
         line = value;
     }
     
