@@ -12,6 +12,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.hadoop.conf.Configuration;
@@ -30,13 +31,13 @@ import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 
 
-//problème d'execution à partir de la seconde execution (le test pour lancer la boucle de job ne fonctionne pas comme prévu également)
+//Souci lors du lancement du 3eme job (ajouter l'algo de recopie de clusters dans la boucle de jobs)
 public class KMeans {
-    static ArrayList<Centroid> centroidList = new ArrayList<Centroid>();
-    static ArrayList<Centroid> newCentroidList = new ArrayList<Centroid>();
+    static ArrayList<ArrayList<Integer>> centroidList = new ArrayList<ArrayList<Integer>>();
+    static ArrayList<ArrayList<Integer>> newCentroidList = new ArrayList<ArrayList<Integer>>();
   public static class KMeansMapper
        extends Mapper<Object, Text, IntWritable, Text>{
-      static ArrayList<Centroid> cachedCentroidList = new ArrayList<Centroid>();
+      static ArrayList<ArrayList<Integer>> cachedCentroidList = new ArrayList<ArrayList<Integer>>();
           public void setup(Context context) throws IOException{//extracting the data from the distributed cache
               int col = Integer.parseInt(context.getConfiguration().get("col"));
             URI[] files = context.getCacheFiles();
@@ -44,12 +45,14 @@ public class KMeans {
               BufferedReader strm = new BufferedReader(new InputStreamReader(istr));
               String chaine;
               for (int i=0;((chaine=strm.readLine())!=null);i++){
-                  context.getCounter("clusters", "clusters read").increment(1);
-                  if(col == 0)
-                  context.getCounter("clusters", "cluster value "+i).increment(Integer.parseInt(chaine));
-                cachedCentroidList.add(new Centroid(chaine, col));
-                if (col != 0)
-                    context.getCounter("clusters", "cluster value "+i).increment(cachedCentroidList.get(i).returnValue(col));
+                  //context.getCounter("clusters", "clusters read").increment(1);
+                  //if(col == 0)
+                  //context.getCounter("clusters", "cluster value "+i).increment(Integer.parseInt(chaine));
+                //cachedCentroidList.add(new Centroid(chaine, col));
+                cachedCentroidList.add(new ArrayList<Integer>());
+                cachedCentroidList.get(i).add(Integer.parseInt(chaine));
+                //if (col != 0)
+                    //context.getCounter("clusters", "cluster value "+i).increment(cachedCentroidList.get(i).returnValue(col));
               }
               strm.close();
           }
@@ -61,14 +64,13 @@ public class KMeans {
               int var = Integer.parseInt(tokens[col]);
               int closest = 0;
               for (int i = 0; i<cachedCentroidList.size();i++){
-                if (Math.abs(cachedCentroidList.get(closest).returnValue(0)-var) > Math.abs(cachedCentroidList.get(i).returnValue(0)-var))
+                if (Math.abs(cachedCentroidList.get(closest).get(0)-var) > Math.abs(cachedCentroidList.get(i).get(0)-var))
                   closest = i;
                 
               }
               context.getCounter("clusters", "cluster"+closest).increment(1);
-              context.write(new IntWritable(closest), value);
-              }catch(Exception e){
-                  
+              context.write(new IntWritable(closest), value);}
+              catch(Exception e){
               }
 	  }
   }
@@ -125,10 +127,15 @@ public class KMeans {
     //BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fs.create(new Path("clusters.txt"))));
     String chaine;
     for (int i=0; i< Integer.parseInt(args[2]) && ((chaine=bt.readLine())!=null);i++){
-        centroidList.add(new Centroid(chaine, Integer.parseInt(args[3])));
+        //centroidList.add(new Centroid(chaine, Integer.parseInt(args[3])));
+        centroidList.add(new ArrayList<Integer>());
+        //pour étendre le centroide à plusieurs dimensions, ajouter une boucle ici
+        int col = Integer.parseInt(args[3]);
+        String[] tokens = chaine.split(",");
+        centroidList.get(i).add(Integer.parseInt(tokens[col]));
         System.out.println("element"+chaine);
         //bw.write(chaine);
-        os.write(chaine.getBytes());
+        os.write(tokens[col].getBytes());
         os.write("\n".getBytes());
     }
     //bw.close();
@@ -139,10 +146,18 @@ public class KMeans {
     //bw = new BufferedWriter(new OutputStreamWriter(fs.create(new Path("clusters.txt"))));
     BufferedReader outputReader = new BufferedReader(new InputStreamReader(fs.open(new Path(args[1]+"/part-r-00000"))));
     os = fs.create(new Path("clusters.txt"));
+    int i=0;
+    System.out.println("cluster recap:");
     while((chaine = outputReader.readLine()) != null){
-        newCentroidList.add(new Centroid(chaine, 0));
+        //newCentroidList.add(new Centroid(chaine, 0));
+        newCentroidList.add(new ArrayList<Integer>());
+        newCentroidList.get(i).add(Integer.parseInt(chaine));
+        //os.write("token,".getBytes());
+        
+        System.out.println("cluster"+i+"="+chaine);
         os.write(chaine.getBytes());
         os.write("\n".getBytes());
+        i++;
         //bw.write(chaine);
         //bw.newLine();
     }
@@ -153,7 +168,7 @@ public class KMeans {
         //File outputFile = new File(args[1]);
         //outputFile.delete();
         conf = new Configuration();
-    conf.set("col", "0");
+    conf.set("col", args[3]);
         job = Job.getInstance(conf, "KMeans");
         job.addCacheFile(new Path("clusters.txt").toUri());
         job.setNumReduceTasks(1);
@@ -189,7 +204,19 @@ public class KMeans {
      return outPutPath; 
   }
   
-  public static Boolean compareClusters(ArrayList<Centroid> oldlist, ArrayList<Centroid> newlist){
-      return oldlist.equals(newlist);
+  public static Boolean compareClusters(ArrayList<ArrayList<Integer>> oldlist, ArrayList<ArrayList<Integer>> newlist){//returns true if equal
+      if(oldlist.size() != newlist.size())
+          return false;
+      
+      for(int i = 0 ; i<oldlist.size();i++){
+          if (oldlist.get(i).size() != newlist.get(i).size())
+              return false;
+          for(int j = 0; j<oldlist.get(i).size();j++){
+              if(oldlist.get(i).get(j) != newlist.get(i).get(j))
+                  return false;
+          }
+      }
+      return true;
+      
   }
 }

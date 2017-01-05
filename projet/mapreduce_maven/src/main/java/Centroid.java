@@ -33,4 +33,18 @@ public class Centroid {
     int returnValue(int index){
         return values.get(index);
     }
+    
+    int getSize(){
+        return values.size();
+    }
+    
+    Boolean equals(Centroid obj){
+        if (obj.getSize() != values.size())
+            return false;
+        for (int i = 0; i< values.size(); i++){
+            if (values.get(i) != obj.returnValue(i))
+                return false;
+        }
+        return  true;
+    }
 }
