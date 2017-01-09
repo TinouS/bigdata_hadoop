@@ -25,7 +25,7 @@
   			<configuration>
   				<archive>
   					<manifest>
-  						<mainClass>KMeans</mainClass>
+  						<mainClass>NKmeans</mainClass>
   					</manifest>
   				</archive>
   			</configuration>
